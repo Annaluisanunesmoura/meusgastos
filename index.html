@@ -7,12 +7,18 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-wallet"></i> Controle de Gastos</h1>
-            <p>Gerencie suas despesas e salários de forma simples</p>
+            <div class="header-content">
+                <h1><i class="fas fa-wallet"></i> Controle de Gastos</h1>
+                <p>Gerencie suas despesas e salários de forma simples</p>
+                <button id="theme-toggle" class="btn theme-btn">
+                    <i class="fas fa-moon"></i> Tema Escuro
+                </button>
+            </div>
         </header>
 
         <div class="app-container">
@@ -31,7 +37,7 @@
                     </div>
                     <div class="form-group">
                         <label for="amount"><i class="fas fa-money-bill-wave"></i> Valor (R$):</label>
-                        <input type="number" id="amount" step="0.01" min="0" required placeholder="0,00">
+                        <input type="number" id="amount" step="0.01" min="0.01" required placeholder="0,00">
                     </div>
                     <div class="form-group">
                         <label for="date"><i class="fas fa-calendar-day"></i> Data:</label>
@@ -44,6 +50,23 @@
                         <i class="fas fa-times"></i> Cancelar Edição
                     </button>
                 </form>
+
+                <div class="budget-section">
+                    <h3><i class="fas fa-bullseye"></i> Metas Mensais</h3>
+                    <div class="form-group">
+                        <label for="budget-category">Categoria:</label>
+                        <select id="budget-category">
+                            <option value="">Selecione</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="budget-amount">Valor Máximo (R$):</label>
+                        <input type="number" id="budget-amount" step="0.01" min="0.01" placeholder="0,00">
+                    </div>
+                    <button type="button" class="btn" id="set-budget-btn">
+                        <i class="fas fa-target"></i> Definir Meta
+                    </button>
+                </div>
             </section>
 
             <section class="expense-summary">
@@ -66,11 +89,20 @@
                         <p id="month-balance">R$ 0,00</p>
                     </div>
                 </div>
+
+                <div class="budget-alerts" id="budget-alerts">
+                    <!-- Alertas de orçamento serão inseridos aqui -->
+                </div>
+
                 <div class="form-group">
                     <button id="edit-salary-btn" class="btn">
                         <i class="fas fa-edit"></i> Editar Salário
                     </button>
+                    <button id="export-btn" class="btn" style="margin-left: 10px;">
+                        <i class="fas fa-file-export"></i> Exportar
+                    </button>
                 </div>
+
                 <div id="salary-form-container" style="display: none;">
                     <div class="form-group">
                         <label for="salary-month"><i class="fas fa-calendar"></i> Mês:</label>
@@ -78,7 +110,7 @@
                     </div>
                     <div class="form-group">
                         <label for="salary-amount"><i class="fas fa-money-bill-wave"></i> Valor Bruto (R$):</label>
-                        <input type="number" id="salary-amount" step="0.01" min="0" class="salary-input" placeholder="0,00">
+                        <input type="number" id="salary-amount" step="0.01" min="0.01" class="salary-input" placeholder="0,00">
                     </div>
                     <div class="form-group">
                         <label for="salary-discounts"><i class="fas fa-minus-circle"></i> Descontos (R$):</label>
@@ -95,6 +127,7 @@
                         <i class="fas fa-times"></i> Cancelar
                     </button>
                 </div>
+
                 <div class="filter-controls">
                     <div class="form-group">
                         <label for="filter-month"><i class="fas fa-filter"></i> Mês:</label>
@@ -108,11 +141,39 @@
                             <option value="all">Todas</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="filter-amount"><i class="fas fa-filter"></i> Valor:</label>
+                        <select id="filter-amount">
+                            <option value="all">Todos</option>
+                            <option value="100">Acima de R$ 100</option>
+                            <option value="500">Acima de R$ 500</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="custom-amount-group" style="display: none;">
+                        <label for="custom-amount">Valor Personalizado:</label>
+                        <input type="number" id="custom-amount" step="0.01" min="0.01" placeholder="Digite o valor">
+                    </div>
                 </div>
             </section>
 
             <section class="expense-list">
                 <h2><i class="fas fa-history"></i> Histórico</h2>
+                <div class="list-controls">
+                    <div class="form-group sort-group">
+                        <label for="sort-by"><i class="fas fa-sort"></i> Ordenar por:</label>
+                        <select id="sort-by">
+                            <option value="date-desc">Data (Mais Recente)</option>
+                            <option value="date-asc">Data (Mais Antiga)</option>
+                            <option value="amount-desc">Valor (Maior)</option>
+                            <option value="amount-asc">Valor (Menor)</option>
+                            <option value="category">Categoria</option>
+                        </select>
+                    </div>
+                    <button id="print-btn" class="btn">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                </div>
                 <div class="list-header">
                     <span>Data</span>
                     <span>Categoria</span>
@@ -126,9 +187,26 @@
                     </p>
                 </div>
             </section>
+
+            <section class="charts-section">
+                <h2><i class="fas fa-chart-bar"></i> Visualização</h2>
+                <div class="chart-container">
+                    <canvas id="expensesChart"></canvas>
+                </div>
+                <div class="chart-toggle">
+                    <button class="btn chart-type-btn active" data-type="pie">
+                        <i class="fas fa-chart-pie"></i> Pizza
+                    </button>
+                    <button class="btn chart-type-btn" data-type="bar">
+                        <i class="fas fa-chart-bar"></i> Barras
+                    </button>
+                </div>
+            </section>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
