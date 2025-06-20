@@ -381,3 +381,67 @@ input:focus, select:focus {
         height: 300px;
     }
 }
+/* Estilos para a seção de gráficos */
+.charts-section {
+    grid-column: 1 / -1;
+    background: white;
+    padding: 25px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-top: 20px;
+    text-align: center;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+    margin: 0 auto 25px;
+}
+
+.chart-options {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.chart-option {
+    padding: 10px 20px;
+    background-color: var(--light-color);
+    border: 2px solid var(--primary-color);
+    border-radius: 30px;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-option.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.chart-option:hover:not(.active) {
+    background-color: rgba(67, 97, 238, 0.1);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        height: 300px;
+    }
+    
+    .chart-options {
+        gap: 10px;
+    }
+    
+    .chart-option {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+}
