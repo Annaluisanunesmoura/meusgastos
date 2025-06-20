@@ -10,38 +10,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelEditBtn = document.getElementById('cancel-edit');
     const expensesContainer = document.getElementById('expenses-container');
     const monthTotalElement = document.getElementById('month-total');
+    const topCategoryElement = document.getElementById('top-category');
     const monthSalaryElement = document.getElementById('month-salary');
     const monthBalanceElement = document.getElementById('month-balance');
     const filterMonthSelect = document.getElementById('filter-month');
     const filterCategorySelect = document.getElementById('filter-category');
-    const sortBySelect = document.getElementById('sort-by');
     const categoriesDatalist = document.getElementById('categories');
-    const chartCanvas = document.getElementById('expensesChart');
-    const chartOptions = document.querySelectorAll('.chart-option');
+    const editSalaryBtn = document.getElementById('edit-salary-btn');
+    const salaryFormContainer = document.getElementById('salary-form-container');
+    const salaryMonthSelect = document.getElementById('salary-month');
+    const salaryAmountInput = document.getElementById('salary-amount');
+    const salaryDiscountsInput = document.getElementById('salary-discounts');
+    const salaryNetInput = document.getElementById('salary-net');
+    const saveSalaryBtn = document.getElementById('save-salary-btn');
+    const cancelSalaryBtn = document.getElementById('cancel-salary-btn');
 
-    // Dados
+    // Carrega despesas e salários do localStorage
     let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
     let salaries = JSON.parse(localStorage.getItem('salaries')) || {};
-    let currentChart = null;
-    let chartType = 'pie';
 
-    // Configuração inicial
+    // Configura data padrão
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
-    
-    // Evento para salvar despesa
+
+    // Evento para adicionar/editar despesa
     expenseForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
         // Validação
         if (!categoryInput.value || !amountInput.value || !dateInput.value) {
-            alert('Por favor, preencha todos os campos obrigatórios!');
-            return;
-        }
-
-        const amount = parseFloat(amountInput.value);
-        if (amount <= 0) {
-            alert('O valor deve ser maior que zero!');
+            alert('Preencha todos os campos obrigatórios!');
             return;
         }
 
@@ -49,28 +47,32 @@ document.addEventListener('DOMContentLoaded', function() {
             id: editIdInput.value ? parseInt(editIdInput.value) : Date.now(),
             category: categoryInput.value.trim(),
             description: descriptionInput.value.trim(),
-            amount: amount,
+            amount: parseFloat(amountInput.value),
             date: dateInput.value
         };
 
-        // Edição ou adição
+        // Se estiver editando, remove a despesa antiga
         if (editIdInput.value) {
             expenses = expenses.filter(expense => expense.id !== parseInt(editIdInput.value));
         }
+
+        // Adiciona ao array
         expenses.push(expenseData);
         
-        // Salvar e atualizar
-        saveData();
+        // Salva no localStorage
+        localStorage.setItem('expenses', JSON.stringify(expenses));
+        
+        // Atualiza a interface
         loadExpenses();
+        
+        // Limpa o formulário
         resetForm();
     });
 
-    // Funções auxiliares
-    function saveData() {
-        localStorage.setItem('expenses', JSON.stringify(expenses));
-        localStorage.setItem('salaries', JSON.stringify(salaries));
-    }
+    // Função para cancelar edição
+    cancelEditBtn.addEventListener('click', resetForm);
 
+    // Função para resetar o formulário
     function resetForm() {
         expenseForm.reset();
         dateInput.value = today;
@@ -79,64 +81,61 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditBtn.style.display = 'none';
     }
 
+    // Função para carregar e exibir despesas
     function loadExpenses() {
         const monthFilter = filterMonthSelect.value;
         const categoryFilter = filterCategorySelect.value;
-        const sortBy = sortBySelect.value;
 
-        // Filtrar
-        let filteredExpenses = expenses.filter(expense => {
-            const matchesMonth = monthFilter === 'all' || 
-                `${new Date(expense.date).getFullYear()}-${String(new Date(expense.date).getMonth() + 1).padStart(2, '0')}` === monthFilter;
-            
-            const matchesCategory = categoryFilter === 'all' || 
-                expense.category === categoryFilter;
-            
-            return matchesMonth && matchesCategory;
-        });
+        let filteredExpenses = [...expenses];
 
-        // Ordenar
-        filteredExpenses = sortExpenses(filteredExpenses, sortBy);
+        // Filtra por mês
+        if (monthFilter !== 'all') {
+            filteredExpenses = filteredExpenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}` === monthFilter;
+            });
+        }
 
-        // Exibir
+        // Filtra por categoria
+        if (categoryFilter !== 'all') {
+            filteredExpenses = filteredExpenses.filter(expense => 
+                expense.category === categoryFilter
+            );
+        }
+
+        // Ordena por data (mais recente primeiro)
+        filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Exibe os gastos
         displayExpenses(filteredExpenses);
         updateSummary(filteredExpenses);
         updateFilters();
-        updateChart(filteredExpenses);
     }
 
-    function sortExpenses(expenses, sortBy) {
-        switch (sortBy) {
-            case 'date-desc': return [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-            case 'date-asc': return [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
-            case 'amount-desc': return [...expenses].sort((a, b) => b.amount - a.amount);
-            case 'amount-asc': return [...expenses].sort((a, b) => a.amount - b.amount);
-            default: return expenses;
-        }
-    }
-
+    // Exibe as despesas na tabela
     function displayExpenses(expensesToDisplay) {
         expensesContainer.innerHTML = '';
 
         if (expensesToDisplay.length === 0) {
             expensesContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-receipt"></i>
-                    <p>Nenhuma despesa encontrada</p>
-                    <small>Tente alterar os filtros ou adicionar uma nova despesa</small>
-                </div>
+                <p class="empty-message">
+                    <i class="fas fa-info-circle"></i> Nenhuma despesa encontrada.
+                </p>
             `;
             return;
         }
 
         expensesToDisplay.forEach(expense => {
+            const expenseDate = new Date(expense.date);
+            const formattedDate = expenseDate.toLocaleDateString('pt-BR');
+
             const expenseElement = document.createElement('div');
             expenseElement.className = 'expense-item';
             expenseElement.innerHTML = `
-                <div class="expense-date">${new Date(expense.date).toLocaleDateString('pt-BR')}</div>
-                <div class="expense-category">${expense.category}</div>
-                <div class="expense-description">${expense.description || '-'}</div>
-                <div class="expense-amount">R$ ${expense.amount.toFixed(2)}</div>
+                <div>${formattedDate}</div>
+                <div>${expense.category}</div>
+                <div>${expense.description || '-'}</div>
+                <div>R$ ${expense.amount.toFixed(2)}</div>
                 <div class="expense-actions">
                     <button onclick="editExpense(${expense.id})" class="action-btn edit-btn" title="Editar">
                         <i class="fas fa-edit"></i>
@@ -150,193 +149,208 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Atualiza o resumo financeiro
     function updateSummary(expensesToAnalyze) {
+        // Obtém o mês selecionado
         const selectedMonth = filterMonthSelect.value;
         
-        // Total gasto
-        const monthTotal = expensesToAnalyze.reduce((total, expense) => total + expense.amount, 0);
+        // Total do mês
+        const monthTotal = expensesToAnalyze.reduce((total, expense) => 
+            total + expense.amount, 0
+        );
         monthTotalElement.textContent = `R$ ${monthTotal.toFixed(2)}`;
         
-        // Salário
+        // Salário do mês
         let monthSalary = 0;
         if (selectedMonth !== 'all' && salaries[selectedMonth]) {
             monthSalary = salaries[selectedMonth].net || 0;
         }
         monthSalaryElement.textContent = `R$ ${monthSalary.toFixed(2)}`;
         
-        // Saldo
+        // Saldo do mês
         const monthBalance = monthSalary - monthTotal;
         monthBalanceElement.textContent = `R$ ${monthBalance.toFixed(2)}`;
+        monthBalanceElement.style.color = monthBalance >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+        
+        // Categoria mais gasta
+        const categoryTotals = {};
+        expensesToAnalyze.forEach(expense => {
+            categoryTotals[expense.category] = 
+                (categoryTotals[expense.category] || 0) + expense.amount;
+        });
+
+        let topCategory = '-';
+        let maxAmount = 0;
+        for (const category in categoryTotals) {
+            if (categoryTotals[category] > maxAmount) {
+                maxAmount = categoryTotals[category];
+                topCategory = category;
+            }
+        }
+        topCategoryElement.textContent = topCategory;
     }
 
+    // Atualiza os filtros
     function updateFilters() {
-        // Meses disponíveis
+        // Filtro de meses
         const months = new Set();
         expenses.forEach(expense => {
             const date = new Date(expense.date);
-            months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+            const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            months.add(month);
         });
 
-        // Atualizar selects
-        updateMonthFilter(months);
-        updateCategoryFilter();
-    }
+        // Adiciona meses que têm salário mas não têm despesas
+        Object.keys(salaries).forEach(month => {
+            months.add(month);
+        });
 
-    function updateMonthFilter(months) {
         const sortedMonths = Array.from(months).sort().reverse();
-        
         filterMonthSelect.innerHTML = '<option value="all">Todos os meses</option>';
-        
+        salaryMonthSelect.innerHTML = '';
+
         sortedMonths.forEach(month => {
             const [year, monthNum] = month.split('-');
-            const monthName = getMonthName(monthNum);
+            const monthNames = [
+                'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+            const monthName = monthNames[parseInt(monthNum) - 1];
             
+            // Para o filtro de mês
             const option = document.createElement('option');
             option.value = month;
             option.textContent = `${monthName}/${year}`;
             filterMonthSelect.appendChild(option);
-        });
-    }
-
-    function updateCategoryFilter() {
-        const categories = new Set(expenses.map(expense => expense.category));
-        
-        filterCategorySelect.innerHTML = '<option value="all">Todas categorias</option>';
-        categoriesDatalist.innerHTML = '';
-        
-        Array.from(categories).sort().forEach(category => {
-            // Para filtro
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            filterCategorySelect.appendChild(option);
             
-            // Para datalist
-            const datalistOption = document.createElement('option');
-            datalistOption.value = category;
-            categoriesDatalist.appendChild(datalistOption);
+            // Para o select de salário
+            const salaryOption = document.createElement('option');
+            salaryOption.value = month;
+            salaryOption.textContent = `${monthName}/${year}`;
+            salaryMonthSelect.appendChild(salaryOption);
+        });
+
+        // Filtro de categorias
+        const categories = new Set(expenses.map(expense => expense.category));
+        filterCategorySelect.innerHTML = '<option value="all">Todas as Categorias</option>';
+        categoriesDatalist.innerHTML = '';
+
+        Array.from(categories).sort().forEach(category => {
+            // Para o datalist (auto-complete)
+            const optionDatalist = document.createElement('option');
+            optionDatalist.value = category;
+            categoriesDatalist.appendChild(optionDatalist);
+
+            // Para o select de filtro
+            const optionSelect = document.createElement('option');
+            optionSelect.value = category;
+            optionSelect.textContent = category;
+            filterCategorySelect.appendChild(optionSelect);
         });
     }
 
-    function getMonthName(monthNum) {
-        const months = [
-            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-        ];
-        return months[parseInt(monthNum) - 1];
-    }
-
-    function updateChart(expensesToDisplay) {
-        if (currentChart) {
-            currentChart.destroy();
-        }
-        
-        // Agrupar por categoria
-        const categories = {};
-        expensesToDisplay.forEach(expense => {
-            categories[expense.category] = (categories[expense.category] || 0) + expense.amount;
-        });
-        
-        const ctx = chartCanvas.getContext('2d');
-        const colors = [
-            '#4361ee', '#3f37c9', '#4895ef', '#4cc9f0', '#7209b7',
-            '#560bad', '#480ca8', '#3a0ca3', '#3f37c9', '#4361ee'
-        ];
-        
-        currentChart = new Chart(ctx, {
-            type: chartType,
-            data: {
-                labels: Object.keys(categories),
-                datasets: [{
-                    data: Object.values(categories),
-                    backgroundColor: colors,
-                    borderColor: '#fff',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.label}: R$ ${context.raw.toFixed(2)}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    // Event Listeners
-    cancelEditBtn.addEventListener('click', resetForm);
+    // Eventos dos filtros
     filterMonthSelect.addEventListener('change', loadExpenses);
     filterCategorySelect.addEventListener('change', loadExpenses);
-    sortBySelect.addEventListener('change', loadExpenses);
 
-    // Alternar tipo de gráfico
-    chartOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            chartOptions.forEach(opt => opt.classList.remove('active'));
-            this.classList.add('active');
-            chartType = this.dataset.type;
-            loadExpenses();
-        });
+    // Evento para editar salário
+    editSalaryBtn.addEventListener('click', function() {
+        salaryFormContainer.style.display = 'block';
+        
+        // Preenche com o mês selecionado no filtro, se não for "Todos"
+        const selectedMonth = filterMonthSelect.value;
+        if (selectedMonth !== 'all') {
+            salaryMonthSelect.value = selectedMonth;
+            
+            // Se já existir salário para este mês, preenche os campos
+            if (salaries[selectedMonth]) {
+                salaryAmountInput.value = salaries[selectedMonth].gross || '';
+                salaryDiscountsInput.value = salaries[selectedMonth].discounts || '';
+                salaryNetInput.value = salaries[selectedMonth].net || '';
+            } else {
+                salaryAmountInput.value = '';
+                salaryDiscountsInput.value = '';
+                salaryNetInput.value = '';
+            }
+        }
     });
 
-    // Editar salário (simplificado)
-    document.querySelector('.income').addEventListener('click', function() {
-        const selectedMonth = filterMonthSelect.value;
-        if (selectedMonth === 'all') {
-            alert('Selecione um mês específico para editar o salário');
+    // Evento para cancelar edição de salário
+    cancelSalaryBtn.addEventListener('click', function() {
+        salaryFormContainer.style.display = 'none';
+    });
+
+    // Calcula o salário líquido quando os campos são alterados
+    salaryAmountInput.addEventListener('input', calculateNetSalary);
+    salaryDiscountsInput.addEventListener('input', calculateNetSalary);
+
+    function calculateNetSalary() {
+        const gross = parseFloat(salaryAmountInput.value) || 0;
+        const discounts = parseFloat(salaryDiscountsInput.value) || 0;
+        const net = gross - discounts;
+        salaryNetInput.value = net.toFixed(2);
+    }
+
+    // Evento para salvar salário
+    saveSalaryBtn.addEventListener('click', function() {
+        const month = salaryMonthSelect.value;
+        const gross = parseFloat(salaryAmountInput.value) || 0;
+        const discounts = parseFloat(salaryDiscountsInput.value) || 0;
+        const net = parseFloat(salaryNetInput.value) || 0;
+        
+        if (!month) {
+            alert('Selecione um mês!');
             return;
         }
         
-        const gross = prompt('Salário bruto (R$):', salaries[selectedMonth]?.gross || '');
-        if (gross === null) return;
+        if (gross <= 0) {
+            alert('O valor bruto deve ser maior que zero!');
+            return;
+        }
         
-        const discounts = prompt('Descontos (R$):', salaries[selectedMonth]?.discounts || '0');
-        
-        const netValue = parseFloat(gross) - parseFloat(discounts || 0);
-        
-        salaries[selectedMonth] = {
-            gross: parseFloat(gross),
-            discounts: parseFloat(discounts || 0),
-            net: netValue
+        // Salva o salário
+        salaries[month] = {
+            gross,
+            discounts,
+            net
         };
         
-        saveData();
+        localStorage.setItem('salaries', JSON.stringify(salaries));
+        
+        // Atualiza a interface
         loadExpenses();
+        
+        // Fecha o formulário
+        salaryFormContainer.style.display = 'none';
     });
 
-    // Carregar dados iniciais
+    // Carrega dados iniciais
     loadExpenses();
 });
 
-// Funções globais
+// Função global para editar despesa
 function editExpense(id) {
     const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
     const expenseToEdit = expenses.find(expense => expense.id === id);
     
     if (!expenseToEdit) return;
 
+    // Preenche o formulário com os dados da despesa
     document.getElementById('category').value = expenseToEdit.category;
     document.getElementById('description').value = expenseToEdit.description || '';
     document.getElementById('amount').value = expenseToEdit.amount;
     document.getElementById('date').value = expenseToEdit.date;
     document.getElementById('edit-id').value = expenseToEdit.id;
     
-    document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save"></i> Atualizar';
-    document.getElementById('cancel-edit').style.display = 'inline-flex';
-    
+    // Atualiza o botão de submit
+    document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save"></i> Atualizar Despesa';
+    document.getElementById('cancel-edit').style.display = 'block';
+
+    // Rola até o formulário
     document.getElementById('expense-form').scrollIntoView({ behavior: 'smooth' });
 }
 
+// Função global para deletar despesa
 function deleteExpense(id) {
     if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
     
@@ -344,5 +358,6 @@ function deleteExpense(id) {
     expenses = expenses.filter(expense => expense.id !== id);
     localStorage.setItem('expenses', JSON.stringify(expenses));
     
+    // Recarrega a página para atualizar a lista
     location.reload();
 }
