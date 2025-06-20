@@ -443,3 +443,170 @@ function deleteExpense(id) {
     localStorage.setItem('expenses', JSON.stringify(expenses));
     location.reload();
 }
+// Variável global para o gráfico
+let expensesChart = null;
+
+// No final do DOMContentLoaded, adicione:
+setupChartTabs();
+
+// Função para configurar as abas dos gráficos
+function setupChartTabs() {
+    const tabs = document.querySelectorAll('.chart-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Remove a classe active de todas as abas
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            // Adiciona a classe active apenas na aba clicada
+            this.classList.add('active');
+            
+            // Obtém o tipo de gráfico a ser exibido
+            const chartType = this.getAttribute('data-chart');
+            
+            // Atualiza o gráfico
+            updateCharts(getFilteredExpenses(), chartType);
+        });
+    });
+}
+
+// Função para atualizar os gráficos
+function updateCharts(expensesToDisplay, chartType = 'pie') {
+    const ctx = document.getElementById('expensesChart').getContext('2d');
+    
+    // Destrói o gráfico anterior se existir
+    if (expensesChart) {
+        expensesChart.destroy();
+    }
+
+    // Cria o novo gráfico baseado no tipo selecionado
+    if (chartType === 'pie') {
+        createPieChart(ctx, expensesToDisplay);
+    } else {
+        createBarChart(ctx, expensesToDisplay);
+    }
+}
+
+// Função para criar gráfico de pizza
+function createPieChart(ctx, expenses) {
+    // Agrupa gastos por categoria
+    const categories = {};
+    expenses.forEach(expense => {
+        categories[expense.category] = (categories[expense.category] || 0) + expense.amount;
+    });
+
+    expensesChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(categories),
+            datasets: [{
+                data: Object.values(categories),
+                backgroundColor: [
+                    '#4361ee', '#3a0ca3', '#4895ef', '#4cc9f0', '#f72585',
+                    '#7209b7', '#b5179e', '#560bad', '#3f37c9'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: R$ ${value.toFixed(2)} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Função para criar gráfico de barras
+function createBarChart(ctx, expenses) {
+    // Agrupa por mês
+    const monthlyData = {};
+    expenses.forEach(expense => {
+        const date = new Date(expense.date);
+        const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthlyData[monthYear] = (monthlyData[monthYear] || 0) + expense.amount;
+    });
+
+    // Ordena os meses
+    const sortedMonths = Object.keys(monthlyData).sort();
+    
+    // Prepara os rótulos (labels) formatados
+    const labels = sortedMonths.map(month => {
+        const [year, monthNum] = month.split('-');
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        return `${monthNames[parseInt(monthNum) - 1]}/${year}`;
+    });
+
+    // Prepara os dados para o gráfico
+    const data = sortedMonths.map(month => monthlyData[month]);
+
+    expensesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Gastos Mensais',
+                data: data,
+                backgroundColor: '#4361ee',
+                borderColor: '#3a0ca3',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Valor (R$)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Mês'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `R$ ${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Modifique a função loadExpenses() para incluir:
+function loadExpenses() {
+    const filteredExpenses = getFilteredExpenses();
+    displayExpenses(filteredExpenses);
+    updateSummary(filteredExpenses);
+    updateFilters();
+    
+    // Obtém o tipo de gráfico ativo
+    const activeTab = document.querySelector('.chart-tab.active');
+    const chartType = activeTab ? activeTab.getAttribute('data-chart') : 'pie';
+    
+    // Atualiza o gráfico
+    updateCharts(filteredExpenses, chartType);
+}
