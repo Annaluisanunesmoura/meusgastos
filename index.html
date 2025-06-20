@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -43,16 +44,6 @@
                     <button type="button" class="btn cancel-btn" id="cancel-edit" style="display: none; margin-top: 10px; background-color: var(--gray-color)">
                         <i class="fas fa-times"></i> Cancelar Edição
                     </button>
-                    <section class="charts-section">
-                        <h2><i class="fas fa-chart-pie"></i> Visualizações Gráficas</h2>
-                        <div class="chart-tabs">
-                            <button class="chart-tab active" data-chart="pie">Gastos por Categoria</button>
-                            <button class="chart-tab" data-chart="bar">Comparativo Mensal</button>
-    </div>
-    <div class="chart-container">
-        <canvas id="expensesChart"></canvas>
-    </div>
-</section>
                 </form>
             </section>
 
@@ -134,6 +125,17 @@
                     <p class="empty-message">
                         <i class="fas fa-info-circle"></i> Nenhuma despesa registrada.
                     </p>
+                </div>
+            </section>
+
+            <section class="charts-section">
+                <h2><i class="fas fa-chart-pie"></i> Visualizações Gráficas</h2>
+                <div class="chart-tabs">
+                    <button class="chart-tab active" data-chart="pie">Gastos por Categoria</button>
+                    <button class="chart-tab" data-chart="bar">Comparativo Mensal</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="expensesChart"></canvas>
                 </div>
             </section>
         </div>
