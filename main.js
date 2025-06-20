@@ -24,55 +24,75 @@ document.addEventListener('DOMContentLoaded', function() {
     const salaryNetInput = document.getElementById('salary-net');
     const saveSalaryBtn = document.getElementById('save-salary-btn');
     const cancelSalaryBtn = document.getElementById('cancel-salary-btn');
+    const chartTabs = document.querySelectorAll('.chart-tab');
 
-    // Carrega despesas e salários do localStorage
+    // Variáveis globais
     let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
     let salaries = JSON.parse(localStorage.getItem('salaries')) || {};
-
-    // Configura data padrão
+    let expensesChart = null;
     const today = new Date().toISOString().split('T')[0];
+
+    // Configurações iniciais
     dateInput.value = today;
 
-    // Evento para adicionar/editar despesa
-    expenseForm.addEventListener('submit', function(e) {
+    // Event Listeners
+    expenseForm.addEventListener('submit', handleExpenseSubmit);
+    cancelEditBtn.addEventListener('click', resetForm);
+    filterMonthSelect.addEventListener('change', loadExpenses);
+    filterCategorySelect.addEventListener('change', loadExpenses);
+    editSalaryBtn.addEventListener('click', showSalaryForm);
+    cancelSalaryBtn.addEventListener('click', hideSalaryForm);
+    saveSalaryBtn.addEventListener('click', saveSalary);
+    salaryAmountInput.addEventListener('input', calculateNetSalary);
+    salaryDiscountsInput.addEventListener('input', calculateNetSalary);
+    chartTabs.forEach(tab => tab.addEventListener('click', switchChartType));
+
+    // Inicialização
+    loadExpenses();
+    setupChartTabs();
+
+    // Funções principais
+    function handleExpenseSubmit(e) {
         e.preventDefault();
         
-        // Validação
+        if (!validateExpenseForm()) return;
+
+        const expenseData = createExpenseData();
+        saveExpense(expenseData);
+        loadExpenses();
+        resetForm();
+    }
+
+    function validateExpenseForm() {
         if (!categoryInput.value || !amountInput.value || !dateInput.value) {
             alert('Preencha todos os campos obrigatórios!');
-            return;
+            return false;
         }
+        if (amountInput.value <= 0) {
+            alert("O valor deve ser maior que zero!");
+            return false;
+        }
+        return true;
+    }
 
-        const expenseData = {
+    function createExpenseData() {
+        return {
             id: editIdInput.value ? parseInt(editIdInput.value) : Date.now(),
             category: categoryInput.value.trim(),
             description: descriptionInput.value.trim(),
             amount: parseFloat(amountInput.value),
             date: dateInput.value
         };
+    }
 
-        // Se estiver editando, remove a despesa antiga
+    function saveExpense(expenseData) {
         if (editIdInput.value) {
             expenses = expenses.filter(expense => expense.id !== parseInt(editIdInput.value));
         }
-
-        // Adiciona ao array
         expenses.push(expenseData);
-        
-        // Salva no localStorage
         localStorage.setItem('expenses', JSON.stringify(expenses));
-        
-        // Atualiza a interface
-        loadExpenses();
-        
-        // Limpa o formulário
-        resetForm();
-    });
+    }
 
-    // Função para cancelar edição
-    cancelEditBtn.addEventListener('click', resetForm);
-
-    // Função para resetar o formulário
     function resetForm() {
         expenseForm.reset();
         dateInput.value = today;
@@ -81,14 +101,20 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditBtn.style.display = 'none';
     }
 
-    // Função para carregar e exibir despesas
     function loadExpenses() {
+        const filteredExpenses = getFilteredExpenses();
+        displayExpenses(filteredExpenses);
+        updateSummary(filteredExpenses);
+        updateFilters();
+        updateCharts(filteredExpenses);
+    }
+
+    function getFilteredExpenses() {
         const monthFilter = filterMonthSelect.value;
         const categoryFilter = filterCategorySelect.value;
 
         let filteredExpenses = [...expenses];
 
-        // Filtra por mês
         if (monthFilter !== 'all') {
             filteredExpenses = filteredExpenses.filter(expense => {
                 const expenseDate = new Date(expense.date);
@@ -96,42 +122,25 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Filtra por categoria
         if (categoryFilter !== 'all') {
             filteredExpenses = filteredExpenses.filter(expense => 
                 expense.category === categoryFilter
             );
         }
 
-        // Ordena por data (mais recente primeiro)
-        filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // Exibe os gastos
-        displayExpenses(filteredExpenses);
-        updateSummary(filteredExpenses);
-        updateFilters();
+        return filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
     }
 
-    // Exibe as despesas na tabela
     function displayExpenses(expensesToDisplay) {
-        expensesContainer.innerHTML = '';
+        expensesContainer.innerHTML = expensesToDisplay.length === 0 ? 
+            '<p class="empty-message"><i class="fas fa-info-circle"></i> Nenhuma despesa encontrada.</p>' :
+            expensesToDisplay.map(expense => createExpenseElement(expense)).join('');
+    }
 
-        if (expensesToDisplay.length === 0) {
-            expensesContainer.innerHTML = `
-                <p class="empty-message">
-                    <i class="fas fa-info-circle"></i> Nenhuma despesa encontrada.
-                </p>
-            `;
-            return;
-        }
-
-        expensesToDisplay.forEach(expense => {
-            const expenseDate = new Date(expense.date);
-            const formattedDate = expenseDate.toLocaleDateString('pt-BR');
-
-            const expenseElement = document.createElement('div');
-            expenseElement.className = 'expense-item';
-            expenseElement.innerHTML = `
+    function createExpenseElement(expense) {
+        const formattedDate = new Date(expense.date).toLocaleDateString('pt-BR');
+        return `
+            <div class="expense-item">
                 <div>${formattedDate}</div>
                 <div>${expense.category}</div>
                 <div>${expense.description || '-'}</div>
@@ -144,39 +153,28 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
-            `;
-            expensesContainer.appendChild(expenseElement);
-        });
+            </div>
+        `;
     }
 
-    // Atualiza o resumo financeiro
     function updateSummary(expensesToAnalyze) {
-        // Obtém o mês selecionado
         const selectedMonth = filterMonthSelect.value;
-        
-        // Total do mês
-        const monthTotal = expensesToAnalyze.reduce((total, expense) => 
-            total + expense.amount, 0
-        );
-        monthTotalElement.textContent = `R$ ${monthTotal.toFixed(2)}`;
-        
-        // Salário do mês
-        let monthSalary = 0;
-        if (selectedMonth !== 'all' && salaries[selectedMonth]) {
-            monthSalary = salaries[selectedMonth].net || 0;
-        }
-        monthSalaryElement.textContent = `R$ ${monthSalary.toFixed(2)}`;
-        
-        // Saldo do mês
+        const monthTotal = expensesToAnalyze.reduce((total, expense) => total + expense.amount, 0);
+        const monthSalary = selectedMonth !== 'all' && salaries[selectedMonth] ? salaries[selectedMonth].net : 0;
         const monthBalance = monthSalary - monthTotal;
+
+        monthTotalElement.textContent = `R$ ${monthTotal.toFixed(2)}`;
+        monthSalaryElement.textContent = `R$ ${monthSalary.toFixed(2)}`;
         monthBalanceElement.textContent = `R$ ${monthBalance.toFixed(2)}`;
         monthBalanceElement.style.color = monthBalance >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
-        
-        // Categoria mais gasta
+
+        updateTopCategory(expensesToAnalyze);
+    }
+
+    function updateTopCategory(expenses) {
         const categoryTotals = {};
-        expensesToAnalyze.forEach(expense => {
-            categoryTotals[expense.category] = 
-                (categoryTotals[expense.category] || 0) + expense.amount;
+        expenses.forEach(expense => {
+            categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
         });
 
         let topCategory = '-';
@@ -190,79 +188,50 @@ document.addEventListener('DOMContentLoaded', function() {
         topCategoryElement.textContent = topCategory;
     }
 
-    // Atualiza os filtros
     function updateFilters() {
-        // Filtro de meses
-        const months = new Set();
-        expenses.forEach(expense => {
-            const date = new Date(expense.date);
-            const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            months.add(month);
-        });
+        updateMonthFilter();
+        updateCategoryFilter();
+    }
 
-        // Adiciona meses que têm salário mas não têm despesas
-        Object.keys(salaries).forEach(month => {
-            months.add(month);
-        });
+    function updateMonthFilter() {
+        const months = new Set([...expenses.map(expense => {
+            const date = new Date(expense.date);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }), ...Object.keys(salaries)]);
 
         const sortedMonths = Array.from(months).sort().reverse();
+        const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
         filterMonthSelect.innerHTML = '<option value="all">Todos os meses</option>';
         salaryMonthSelect.innerHTML = '';
 
         sortedMonths.forEach(month => {
             const [year, monthNum] = month.split('-');
-            const monthNames = [
-                'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-            ];
             const monthName = monthNames[parseInt(monthNum) - 1];
             
-            // Para o filtro de mês
             const option = document.createElement('option');
             option.value = month;
             option.textContent = `${monthName}/${year}`;
-            filterMonthSelect.appendChild(option);
-            
-            // Para o select de salário
-            const salaryOption = document.createElement('option');
-            salaryOption.value = month;
-            salaryOption.textContent = `${monthName}/${year}`;
-            salaryMonthSelect.appendChild(salaryOption);
+            filterMonthSelect.appendChild(option.cloneNode(true));
+            salaryMonthSelect.appendChild(option);
         });
+    }
 
-        // Filtro de categorias
+    function updateCategoryFilter() {
         const categories = new Set(expenses.map(expense => expense.category));
         filterCategorySelect.innerHTML = '<option value="all">Todas as Categorias</option>';
         categoriesDatalist.innerHTML = '';
 
         Array.from(categories).sort().forEach(category => {
-            // Para o datalist (auto-complete)
-            const optionDatalist = document.createElement('option');
-            optionDatalist.value = category;
-            categoriesDatalist.appendChild(optionDatalist);
-
-            // Para o select de filtro
-            const optionSelect = document.createElement('option');
-            optionSelect.value = category;
-            optionSelect.textContent = category;
-            filterCategorySelect.appendChild(optionSelect);
+            categoriesDatalist.appendChild(new Option(category));
+            filterCategorySelect.appendChild(new Option(category, category));
         });
     }
 
-    // Eventos dos filtros
-    filterMonthSelect.addEventListener('change', loadExpenses);
-    filterCategorySelect.addEventListener('change', loadExpenses);
-
-    // Evento para editar salário
-    editSalaryBtn.addEventListener('click', function() {
-        salaryFormContainer.style.display = 'block';
-        
-        // Preenche com o mês selecionado no filtro, se não for "Todos"
+    function showSalaryForm() {
         const selectedMonth = filterMonthSelect.value;
         if (selectedMonth !== 'all') {
             salaryMonthSelect.value = selectedMonth;
-            
-            // Se já existir salário para este mês, preenche os campos
             if (salaries[selectedMonth]) {
                 salaryAmountInput.value = salaries[selectedMonth].gross || '';
                 salaryDiscountsInput.value = salaries[selectedMonth].discounts || '';
@@ -273,91 +242,204 @@ document.addEventListener('DOMContentLoaded', function() {
                 salaryNetInput.value = '';
             }
         }
-    });
+        salaryFormContainer.style.display = 'block';
+    }
 
-    // Evento para cancelar edição de salário
-    cancelSalaryBtn.addEventListener('click', function() {
+    function hideSalaryForm() {
         salaryFormContainer.style.display = 'none';
-    });
-
-    // Calcula o salário líquido quando os campos são alterados
-    salaryAmountInput.addEventListener('input', calculateNetSalary);
-    salaryDiscountsInput.addEventListener('input', calculateNetSalary);
+    }
 
     function calculateNetSalary() {
         const gross = parseFloat(salaryAmountInput.value) || 0;
         const discounts = parseFloat(salaryDiscountsInput.value) || 0;
-        const net = gross - discounts;
-        salaryNetInput.value = net.toFixed(2);
+        salaryNetInput.value = (gross - discounts).toFixed(2);
     }
 
-    // Evento para salvar salário
-    saveSalaryBtn.addEventListener('click', function() {
+    function saveSalary() {
         const month = salaryMonthSelect.value;
         const gross = parseFloat(salaryAmountInput.value) || 0;
         const discounts = parseFloat(salaryDiscountsInput.value) || 0;
         const net = parseFloat(salaryNetInput.value) || 0;
         
-        if (!month) {
-            alert('Selecione um mês!');
+        if (!month || gross <= 0) {
+            alert(month ? 'O valor bruto deve ser maior que zero!' : 'Selecione um mês!');
             return;
         }
         
-        if (gross <= 0) {
-            alert('O valor bruto deve ser maior que zero!');
-            return;
-        }
-        
-        // Salva o salário
-        salaries[month] = {
-            gross,
-            discounts,
-            net
-        };
-        
+        salaries[month] = { gross, discounts, net };
         localStorage.setItem('salaries', JSON.stringify(salaries));
-        
-        // Atualiza a interface
         loadExpenses();
-        
-        // Fecha o formulário
-        salaryFormContainer.style.display = 'none';
-    });
+        hideSalaryForm();
+    }
 
-    // Carrega dados iniciais
-    loadExpenses();
+    function setupChartTabs() {
+        chartTabs.forEach(tab => tab.addEventListener('click', switchChartType));
+    }
+
+    function switchChartType() {
+        chartTabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        updateCharts(getFilteredExpenses(), this.getAttribute('data-chart'));
+    }
+
+    function updateCharts(expensesToDisplay, chartType = 'pie') {
+        const ctx = document.getElementById('expensesChart').getContext('2d');
+        
+        if (expensesChart) expensesChart.destroy();
+
+        expensesChart = chartType === 'pie' ? 
+            createPieChart(ctx, expensesToDisplay) : 
+            createBarChart(ctx, expensesToDisplay);
+    }
+
+    function createPieChart(ctx, expenses) {
+        const categories = {};
+        expenses.forEach(expense => {
+            categories[expense.category] = (categories[expense.category] || 0) + expense.amount;
+        });
+
+        return new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(categories),
+                datasets: [{
+                    data: Object.values(categories),
+                    backgroundColor: generateColors(Object.keys(categories).length),
+                    borderWidth: 1
+                }]
+            },
+            options: getPieChartOptions()
+        });
+    }
+
+    function createBarChart(ctx, expenses) {
+        const monthlyData = {};
+        expenses.forEach(expense => {
+            const monthYear = getMonthYearFromDate(expense.date);
+            monthlyData[monthYear] = (monthlyData[monthYear] || 0) + expense.amount;
+        });
+
+        Object.keys(salaries).forEach(month => {
+            if (!monthlyData[month]) monthlyData[month] = 0;
+        });
+
+        const sortedMonths = Object.keys(monthlyData).sort();
+        const labels = sortedMonths.map(month => formatMonthLabel(month));
+        const expensesData = sortedMonths.map(month => monthlyData[month]);
+        const salaryData = sortedMonths.map(month => salaries[month]?.net || 0);
+
+        return new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Gastos',
+                        data: expensesData,
+                        backgroundColor: '#f72585',
+                        borderColor: '#f72585',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Salários',
+                        data: salaryData,
+                        backgroundColor: '#4cc9f0',
+                        borderColor: '#4cc9f0',
+                        borderWidth: 1,
+                        type: 'line',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: getBarChartOptions()
+        });
+    }
+
+    function getMonthYearFromDate(dateString) {
+        const date = new Date(dateString);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function formatMonthLabel(monthYear) {
+        const [year, monthNum] = monthYear.split('-');
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        return `${monthNames[parseInt(monthNum) - 1]}/${year}`;
+    }
+
+    function generateColors(count) {
+        const baseColors = ['#4361ee', '#3a0ca3', '#4895ef', '#4cc9f0', '#f72585', '#7209b7', '#b5179e', '#560bad', '#3f37c9'];
+        return Array.from({ length: count }, (_, i) => baseColors[i % baseColors.length]);
+    }
+
+    function getPieChartOptions() {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: R$ ${value.toFixed(2)} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    function getBarChartOptions() {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Valor (R$)' }
+                },
+                x: {
+                    title: { display: true, text: 'Mês' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: R$ ${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            }
+        };
+    }
 });
 
-// Função global para editar despesa
+// Funções globais
 function editExpense(id) {
     const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
     const expenseToEdit = expenses.find(expense => expense.id === id);
     
     if (!expenseToEdit) return;
 
-    // Preenche o formulário com os dados da despesa
     document.getElementById('category').value = expenseToEdit.category;
     document.getElementById('description').value = expenseToEdit.description || '';
     document.getElementById('amount').value = expenseToEdit.amount;
     document.getElementById('date').value = expenseToEdit.date;
     document.getElementById('edit-id').value = expenseToEdit.id;
-    
-    // Atualiza o botão de submit
     document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save"></i> Atualizar Despesa';
     document.getElementById('cancel-edit').style.display = 'block';
-
-    // Rola até o formulário
     document.getElementById('expense-form').scrollIntoView({ behavior: 'smooth' });
 }
 
-// Função global para deletar despesa
 function deleteExpense(id) {
     if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
     
     let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
     expenses = expenses.filter(expense => expense.id !== id);
     localStorage.setItem('expenses', JSON.stringify(expenses));
-    
-    // Recarrega a página para atualizar a lista
     location.reload();
 }
