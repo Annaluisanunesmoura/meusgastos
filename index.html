@@ -3,26 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle Financeiro Pessoal</title>
+    <title>Controle de Gastos Pessoais</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <div class="header-content">
-                <h1><i class="fas fa-coins"></i> Controle Financeiro</h1>
-                <p>Acompanhe seus gastos de forma simples e elegante</p>
-            </div>
+            <h1><i class="fas fa-wallet"></i> Controle de Gastos</h1>
+            <p>Gerencie suas despesas e salários de forma simples</p>
         </header>
 
         <div class="app-container">
             <section class="add-expense">
-                <div class="section-header">
-                    <h2><i class="fas fa-plus-circle"></i> Adicionar Despesa</h2>
-                </div>
+                <h2><i class="fas fa-plus-circle"></i> Nova Despesa</h2>
                 <form id="expense-form">
                     <input type="hidden" id="edit-id" value="">
                     <div class="form-group">
@@ -31,118 +26,104 @@
                         <datalist id="categories"></datalist>
                     </div>
                     <div class="form-group">
-                        <label for="description"><i class="fas fa-align-left"></i> Descrição (opcional):</label>
+                        <label for="description"><i class="fas fa-align-left"></i> Descrição:</label>
                         <input type="text" id="description" placeholder="Ex: Supermercado">
                     </div>
                     <div class="form-group">
                         <label for="amount"><i class="fas fa-money-bill-wave"></i> Valor (R$):</label>
-                        <input type="number" id="amount" step="0.01" min="0.01" required placeholder="0,00">
+                        <input type="number" id="amount" step="0.01" min="0" required placeholder="0,00">
                     </div>
                     <div class="form-group">
                         <label for="date"><i class="fas fa-calendar-day"></i> Data:</label>
                         <input type="date" id="date" required>
                     </div>
-                    <button type="submit" class="btn primary-btn" id="submit-btn">
+                    <button type="submit" class="btn" id="submit-btn">
                         <i class="fas fa-save"></i> Salvar Despesa
                     </button>
-                    <button type="button" class="btn secondary-btn" id="cancel-edit" style="display: none;">
-                        <i class="fas fa-times"></i> Cancelar
+                    <button type="button" class="btn cancel-btn" id="cancel-edit" style="display: none; margin-top: 10px; background-color: var(--gray-color)">
+                        <i class="fas fa-times"></i> Cancelar Edição
                     </button>
                 </form>
             </section>
 
-            <section class="dashboard">
-                <div class="section-header">
-                    <h2><i class="fas fa-chart-pie"></i> Resumo Financeiro</h2>
-                </div>
-                
+            <section class="expense-summary">
+                <h2><i class="fas fa-chart-pie"></i> Resumo</h2>
                 <div class="summary-cards">
-                    <div class="summary-card income">
-                        <div class="card-icon">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </div>
-                        <div class="card-content">
-                            <h3>Salário Mensal</h3>
-                            <p id="month-salary">R$ 0,00</p>
-                        </div>
+                    <div class="card">
+                        <h3>Total no Mês</h3>
+                        <p id="month-total">R$ 0,00</p>
                     </div>
-                    
-                    <div class="summary-card expense">
-                        <div class="card-icon">
-                            <i class="fas fa-shopping-basket"></i>
-                        </div>
-                        <div class="card-content">
-                            <h3>Total Gastos</h3>
-                            <p id="month-total">R$ 0,00</p>
-                        </div>
+                    <div class="card">
+                        <h3>Categoria Mais Gasta</h3>
+                        <p id="top-category">-</p>
                     </div>
-                    
-                    <div class="summary-card balance">
-                        <div class="card-icon">
-                            <i class="fas fa-piggy-bank"></i>
-                        </div>
-                        <div class="card-content">
-                            <h3>Saldo</h3>
-                            <p id="month-balance">R$ 0,00</p>
-                        </div>
+                    <div class="card">
+                        <h3>Salário do Mês</h3>
+                        <p id="month-salary">R$ 0,00</p>
+                    </div>
+                    <div class="card">
+                        <h3>Saldo do Mês</h3>
+                        <p id="month-balance">R$ 0,00</p>
                     </div>
                 </div>
-
-                <div class="filters">
-                    <div class="filter-group">
-                        <label for="filter-month"><i class="fas fa-calendar-alt"></i> Mês:</label>
+                <div class="form-group">
+                    <button id="edit-salary-btn" class="btn">
+                        <i class="fas fa-edit"></i> Editar Salário
+                    </button>
+                </div>
+                <div id="salary-form-container" style="display: none;">
+                    <div class="form-group">
+                        <label for="salary-month"><i class="fas fa-calendar"></i> Mês:</label>
+                        <select id="salary-month" class="salary-input"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="salary-amount"><i class="fas fa-money-bill-wave"></i> Valor Bruto (R$):</label>
+                        <input type="number" id="salary-amount" step="0.01" min="0" class="salary-input" placeholder="0,00">
+                    </div>
+                    <div class="form-group">
+                        <label for="salary-discounts"><i class="fas fa-minus-circle"></i> Descontos (R$):</label>
+                        <input type="number" id="salary-discounts" step="0.01" min="0" class="salary-input" placeholder="0,00">
+                    </div>
+                    <div class="form-group">
+                        <label for="salary-net"><i class="fas fa-hand-holding-usd"></i> Valor Líquido (R$):</label>
+                        <input type="number" id="salary-net" step="0.01" min="0" class="salary-input" placeholder="0,00" readonly>
+                    </div>
+                    <button type="button" class="btn" id="save-salary-btn">
+                        <i class="fas fa-save"></i> Salvar Salário
+                    </button>
+                    <button type="button" class="btn cancel-btn" id="cancel-salary-btn" style="margin-top: 10px; background-color: var(--gray-color)">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+                <div class="filter-controls">
+                    <div class="form-group">
+                        <label for="filter-month"><i class="fas fa-filter"></i> Mês:</label>
                         <select id="filter-month">
-                            <option value="all">Todos os meses</option>
+                            <option value="all">Todos</option>
                         </select>
                     </div>
-                    
-                    <div class="filter-group">
+                    <div class="form-group">
                         <label for="filter-category"><i class="fas fa-filter"></i> Categoria:</label>
                         <select id="filter-category">
-                            <option value="all">Todas categorias</option>
+                            <option value="all">Todas</option>
                         </select>
                     </div>
                 </div>
             </section>
 
-            <section class="expenses-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-receipt"></i> Suas Despesas</h2>
-                    <div class="sort-options">
-                        <label for="sort-by"><i class="fas fa-sort"></i> Ordenar por:</label>
-                        <select id="sort-by">
-                            <option value="date-desc">Data (recente)</option>
-                            <option value="date-asc">Data (antiga)</option>
-                            <option value="amount-desc">Valor (maior)</option>
-                            <option value="amount-asc">Valor (menor)</option>
-                        </select>
-                    </div>
+            <section class="expense-list">
+                <h2><i class="fas fa-history"></i> Histórico</h2>
+                <div class="list-header">
+                    <span>Data</span>
+                    <span>Categoria</span>
+                    <span>Descrição</span>
+                    <span>Valor</span>
+                    <span>Ações</span>
                 </div>
-                
-                <div class="expenses-list" id="expenses-container">
-                    <div class="empty-state">
-                        <i class="fas fa-receipt"></i>
-                        <p>Nenhuma despesa registrada ainda</p>
-                        <small>Adicione sua primeira despesa usando o formulário ao lado</small>
-                    </div>
-                </div>
-            </section>
-
-            <section class="charts-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-chart-bar"></i> Visualização</h2>
-                    <div class="chart-options">
-                        <button class="chart-option active" data-type="pie">
-                            <i class="fas fa-chart-pie"></i> Pizza
-                        </button>
-                        <button class="chart-option" data-type="bar">
-                            <i class="fas fa-chart-bar"></i> Barras
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="chart-container">
-                    <canvas id="expensesChart"></canvas>
+                <div id="expenses-container">
+                    <p class="empty-message">
+                        <i class="fas fa-info-circle"></i> Nenhuma despesa registrada.
+                    </p>
                 </div>
             </section>
         </div>
