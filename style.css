@@ -76,6 +76,15 @@ header p {
     box-shadow: var(--box-shadow);
 }
 
+.charts-section {
+    grid-column: 1 / -1;
+    background: white;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-top: 20px;
+}
+
 h2 {
     font-size: 1.5rem;
     margin-bottom: 20px;
@@ -242,41 +251,6 @@ input:focus, select:focus {
     border: 1px solid #eee;
 }
 
-@media (max-width: 768px) {
-    .app-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .add-expense, .expense-summary {
-        grid-column: auto;
-    }
-    
-    .summary-cards, .filter-controls {
-        grid-template-columns: 1fr;
-    }
-    
-    .list-header, .expense-item {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .expense-item div:nth-child(3),
-    .expense-item div:nth-child(4),
-    .header-item:nth-child(3),
-    .header-item:nth-child(4) {
-        display: none;
-    }
-}
-
-/* Estilos para os gráficos */
-.charts-section {
-    grid-column: 1 / -1;
-    background: white;
-    padding: 20px;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-top: 20px;
-}
-
 .chart-tabs {
     display: flex;
     margin-bottom: 20px;
@@ -320,6 +294,29 @@ input:focus, select:focus {
 }
 
 @media (max-width: 768px) {
+    .app-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .add-expense, .expense-summary {
+        grid-column: auto;
+    }
+    
+    .summary-cards, .filter-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .list-header, .expense-item {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .expense-item div:nth-child(3),
+    .expense-item div:nth-child(4),
+    .header-item:nth-child(3),
+    .header-item:nth-child(4) {
+        display: none;
+    }
+    
     .chart-container {
         height: 300px;
     }
