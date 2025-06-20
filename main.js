@@ -1,5 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos do DOM
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+    const showLogin = document.getElementById('show-login');
+    const showRegister = document.getElementById('show-register');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userNameSpan = document.getElementById('user-name');
+    
     const expenseForm = document.getElementById('expense-form');
     const categoryInput = document.getElementById('category');
     const descriptionInput = document.getElementById('description');
@@ -23,10 +34,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const salaryNetInput = document.getElementById('salary-net');
     const saveSalaryBtn = document.getElementById('save-salary-btn');
     const cancelSalaryBtn = document.getElementById('cancel-salary-btn');
+    const chartOptions = document.querySelectorAll('.chart-option');
 
     // Variáveis globais
-    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-    let salaries = JSON.parse(localStorage.getItem('salaries')) || {};
+    let expenses = [];
+    let salaries = {};
     let expensesChart = null;
     const today = new Date().toISOString().split('T')[0];
 
@@ -34,6 +46,22 @@ document.addEventListener('DOMContentLoaded', function() {
     dateInput.value = today;
 
     // Event Listeners
+    showLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+    });
+
+    showRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+    });
+
+    registerBtn.addEventListener('click', registerUser);
+    loginBtn.addEventListener('click', loginUser);
+    logoutBtn.addEventListener('click', logoutUser);
+    
     expenseForm.addEventListener('submit', handleExpenseSubmit);
     cancelEditBtn.addEventListener('click', resetForm);
     filterMonthSelect.addEventListener('change', loadExpenses);
@@ -43,12 +71,130 @@ document.addEventListener('DOMContentLoaded', function() {
     saveSalaryBtn.addEventListener('click', saveSalary);
     salaryAmountInput.addEventListener('input', calculateNetSalary);
     salaryDiscountsInput.addEventListener('input', calculateNetSalary);
+    
+    chartOptions.forEach(option => {
+        option.addEventListener('click', switchChartType);
+    });
 
-    // Inicialização
-    loadExpenses();
-    setupChartOptions();
+    // Funções de Autenticação
+    function registerUser() {
+        const name = document.getElementById('register-name').value.trim();
+        const email = document.getElementById('register-email').value.trim().toLowerCase();
+        const password = document.getElementById('register-password').value;
+        const confirmPassword = document.getElementById('register-confirm-password').value;
 
-    // Funções principais
+        if (!name || !email || !password || !confirmPassword) {
+            alert('Preencha todos os campos!');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            alert('As senhas não coincidem!');
+            return;
+        }
+
+        if (password.length < 6) {
+            alert('A senha deve ter pelo menos 6 caracteres!');
+            return;
+        }
+
+        const users = JSON.parse(localStorage.getItem('users')) || [];
+        if (users.some(user => user.email === email)) {
+            alert('Este e-mail já está cadastrado!');
+            return;
+        }
+
+        const newUser = {
+            id: Date.now().toString(),
+            name,
+            email,
+            password: btoa(password), // Criptografia básica (não recomendado para produção)
+            createdAt: new Date().toISOString()
+        };
+
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
+
+        alert('Cadastro realizado com sucesso! Faça login para continuar.');
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+        
+        // Limpar formulário
+        document.getElementById('register-name').value = '';
+        document.getElementById('register-email').value = '';
+        document.getElementById('register-password').value = '';
+        document.getElementById('register-confirm-password').value = '';
+    }
+
+    function loginUser() {
+        const email = document.getElementById('login-email').value.trim().toLowerCase();
+        const password = document.getElementById('login-password').value;
+
+        if (!email || !password) {
+            alert('Preencha todos os campos!');
+            return;
+        }
+
+        const users = JSON.parse(localStorage.getItem('users')) || [];
+        const user = users.find(u => u.email === email && atob(u.password) === password);
+
+        if (!user) {
+            alert('E-mail ou senha incorretos!');
+            return;
+        }
+
+        // Salvar sessão
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        
+        // Atualizar UI
+        userNameSpan.textContent = user.name;
+        authContainer.style.display = 'none';
+        appContainer.style.display = 'block';
+        
+        // Carregar dados do usuário
+        loadUserData(user.id);
+        
+        // Limpar formulário
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+    }
+
+    function logoutUser() {
+        if (confirm('Deseja realmente sair?')) {
+            localStorage.removeItem('currentUser');
+            authContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+            resetForm();
+        }
+    }
+
+    function checkAuth() {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        
+        if (currentUser) {
+            userNameSpan.textContent = currentUser.name;
+            authContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+            loadUserData(currentUser.id);
+        } else {
+            authContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+    }
+
+    function loadUserData(userId) {
+        expenses = JSON.parse(localStorage.getItem(`expenses_${userId}`)) || [];
+        salaries = JSON.parse(localStorage.getItem(`salaries_${userId}`)) || {};
+        
+        // Configurar data padrão
+        dateInput.value = today;
+        
+        // Carregar dados iniciais
+        loadExpenses();
+        updateFilters();
+    }
+
+    // Funções do aplicativo
     function handleExpenseSubmit(e) {
         e.preventDefault();
         
@@ -83,11 +229,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveExpense(expenseData) {
+        const currentUser = getCurrentUser();
+        if (!currentUser) return;
+
         if (editIdInput.value) {
             expenses = expenses.filter(expense => expense.id !== parseInt(editIdInput.value));
         }
+        
         expenses.push(expenseData);
-        localStorage.setItem('expenses', JSON.stringify(expenses));
+        localStorage.setItem(`expenses_${currentUser.id}`, JSON.stringify(expenses));
     }
 
     function resetForm() {
@@ -104,11 +254,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSummary(filteredExpenses);
         updateFilters();
         
-        // Obtém o tipo de gráfico ativo
+        // Atualizar gráfico
         const activeOption = document.querySelector('.chart-option.active');
         const chartType = activeOption ? activeOption.getAttribute('data-chart') : 'pie';
-        
-        // Atualiza o gráfico
         updateCharts(filteredExpenses, chartType);
     }
 
@@ -216,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedMonth = filterMonthSelect.value;
         if (selectedMonth !== 'all') {
             salaryMonthSelect.value = selectedMonth;
+            
             if (salaries[selectedMonth]) {
                 salaryAmountInput.value = salaries[selectedMonth].gross || '';
                 salaryDiscountsInput.value = salaries[selectedMonth].discounts || '';
@@ -240,6 +389,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveSalary() {
+        const currentUser = getCurrentUser();
+        if (!currentUser) return;
+
         const month = salaryMonthSelect.value;
         const gross = parseFloat(salaryAmountInput.value) || 0;
         const discounts = parseFloat(salaryDiscountsInput.value) || 0;
@@ -251,29 +403,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         salaries[month] = { gross, discounts, net };
-        localStorage.setItem('salaries', JSON.stringify(salaries));
+        localStorage.setItem(`salaries_${currentUser.id}`, JSON.stringify(salaries));
         loadExpenses();
         hideSalaryForm();
     }
 
-    // Funções para os gráficos
-    function setupChartOptions() {
-        const options = document.querySelectorAll('.chart-option');
-        options.forEach(option => {
-            option.addEventListener('click', function() {
-                // Remove a classe active de todas as opções
-                options.forEach(opt => opt.classList.remove('active'));
-                
-                // Adiciona a classe active apenas na opção clicada
-                this.classList.add('active');
-                
-                // Obtém o tipo de gráfico a ser exibido
-                const chartType = this.getAttribute('data-chart');
-                
-                // Atualiza o gráfico
-                updateCharts(getFilteredExpenses(), chartType);
-            });
-        });
+    function switchChartType() {
+        chartOptions.forEach(opt => opt.classList.remove('active'));
+        this.classList.add('active');
+        
+        const chartType = this.getAttribute('data-chart');
+        updateCharts(getFilteredExpenses(), chartType);
     }
 
     function updateCharts(expensesToDisplay, chartType = 'pie') {
@@ -414,30 +554,44 @@ document.addEventListener('DOMContentLoaded', function() {
         const baseColors = ['#4361ee', '#3a0ca3', '#4895ef', '#4cc9f0', '#f72585', '#7209b7', '#b5179e', '#560bad', '#3f37c9'];
         return Array.from({ length: count }, (_, i) => baseColors[i % baseColors.length]);
     }
+
+    function getCurrentUser() {
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+        if (!user) {
+            alert('Sessão expirada. Faça login novamente.');
+            logoutUser();
+            return null;
+        }
+        return user;
+    }
+
+    // Funções globais
+    window.editExpense = function(id) {
+        const expenseToEdit = expenses.find(expense => expense.id === id);
+        
+        if (!expenseToEdit) return;
+
+        categoryInput.value = expenseToEdit.category;
+        descriptionInput.value = expenseToEdit.description || '';
+        amountInput.value = expenseToEdit.amount;
+        dateInput.value = expenseToEdit.date;
+        editIdInput.value = expenseToEdit.id;
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Atualizar Despesa';
+        cancelEditBtn.style.display = 'block';
+        document.getElementById('expense-form').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.deleteExpense = function(id) {
+        const currentUser = getCurrentUser();
+        if (!currentUser) return;
+
+        if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
+        
+        expenses = expenses.filter(expense => expense.id !== id);
+        localStorage.setItem(`expenses_${currentUser.id}`, JSON.stringify(expenses));
+        loadExpenses();
+    };
+
+    // Inicialização
+    checkAuth();
 });
-
-// Funções globais
-function editExpense(id) {
-    const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-    const expenseToEdit = expenses.find(expense => expense.id === id);
-    
-    if (!expenseToEdit) return;
-
-    document.getElementById('category').value = expenseToEdit.category;
-    document.getElementById('description').value = expenseToEdit.description || '';
-    document.getElementById('amount').value = expenseToEdit.amount;
-    document.getElementById('date').value = expenseToEdit.date;
-    document.getElementById('edit-id').value = expenseToEdit.id;
-    document.getElementById('submit-btn').innerHTML = '<i class="fas fa-save"></i> Atualizar Despesa';
-    document.getElementById('cancel-edit').style.display = 'block';
-    document.getElementById('expense-form').scrollIntoView({ behavior: 'smooth' });
-}
-
-function deleteExpense(id) {
-    if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
-    
-    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-    expenses = expenses.filter(expense => expense.id !== id);
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-    location.reload();
-}
