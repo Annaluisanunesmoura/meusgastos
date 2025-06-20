@@ -31,6 +31,7 @@ body {
     align-items: center;
     min-height: 100vh;
     background-color: #f5f7fa;
+    padding: 20px;
 }
 
 .auth-box {
@@ -41,18 +42,19 @@ body {
     width: 100%;
     max-width: 400px;
     text-align: center;
-    margin: 20px;
 }
 
 .auth-box h1 {
     color: var(--primary-color);
     margin-bottom: 20px;
+    font-size: 1.8rem;
 }
 
 .auth-box h2 {
     margin-bottom: 20px;
     color: var(--secondary-color);
     border-bottom: none;
+    font-size: 1.4rem;
 }
 
 .auth-switch {
@@ -71,17 +73,53 @@ body {
     text-decoration: underline;
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+/* Estilos para formulários */
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
 }
 
-header {
-    margin-bottom: 30px;
-    color: var(--primary-color);
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--dark-color);
 }
 
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    background-color: var(--light-color);
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(72, 149, 239, 0.2);
+}
+
+.btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.btn:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Estilos para o cabeçalho do app */
 .header-content {
     display: flex;
     justify-content: space-between;
@@ -92,13 +130,8 @@ header {
 }
 
 .header-content h1 {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     margin-bottom: 5px;
-}
-
-header p {
-    color: var(--gray-color);
-    font-size: 1.1rem;
 }
 
 .user-info {
@@ -110,6 +143,45 @@ header p {
     border-radius: 30px;
     font-weight: 500;
 }
+
+.logout-btn {
+    background-color: var(--danger-color);
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    border-radius: 30px;
+}
+
+.logout-btn:hover {
+    background-color: #d11a5a;
+}
+
+/* Responsividade para mobile */
+@media (max-width: 480px) {
+    .auth-box {
+        padding: 20px 15px;
+        margin: 0;
+        width: 100%;
+    }
+
+    .form-group input {
+        padding: 14px 12px;
+        font-size: 16px;
+    }
+
+    .btn {
+        padding: 14px;
+        font-size: 16px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .user-info {
+        width: 100%;
+        justify-content: space-between;
+    }
 
 .logout-btn {
     background-color: var(--danger-color);
